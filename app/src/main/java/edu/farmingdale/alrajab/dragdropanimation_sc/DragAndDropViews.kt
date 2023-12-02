@@ -4,92 +4,131 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.graphics.Canvas
 import android.graphics.Point
+import android.graphics.drawable.AnimationDrawable
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
 import android.view.DragEvent
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
+import androidx.appcompat.app.AppCompatActivity
 import edu.farmingdale.alrajab.dragdropanimation_sc.databinding.ActivityDragAndDropViewsBinding
 
 class DragAndDropViews : AppCompatActivity() {
     lateinit var binding: ActivityDragAndDropViewsBinding
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
         binding = ActivityDragAndDropViewsBinding.inflate(layoutInflater)
+        setContentView(R.layout.activity_drag_and_drop_views)
 
-        setContentView(binding.root)
-        binding.holder01.setOnDragListener(arrowDragListener)
-        binding.holder02.setOnDragListener(arrowDragListener)
+        //adds drag listeners to imageView holders
+        findViewById<ImageView>(R.id.holder01).setOnDragListener(arrowDragListener)
+        findViewById<ImageView>(R.id.holder02).setOnDragListener(arrowDragListener)
+        findViewById<ImageView>(R.id.holder03).setOnDragListener(arrowDragListener)
+        findViewById<ImageView>(R.id.holder04).setOnDragListener(arrowDragListener)
+        findViewById<ImageView>(R.id.holder05).setOnDragListener(arrowDragListener)
 
+        //add listeners for arrow buttons to enable drag
+        findViewById<Button>(R.id.upmoveBtn).setOnLongClickListener(onLongClickListener)
+        findViewById<Button>(R.id.downmoveBtn).setOnLongClickListener(onLongClickListener)
+        findViewById<Button>(R.id.backmoveBtn).setOnLongClickListener(onLongClickListener)
+        findViewById<Button>(R.id.forwardmoveBtn).setOnLongClickListener(onLongClickListener)
 
-        binding.upMoveBtn.setOnLongClickListener(onLongClickListener)
-
-
+        //sets rocket animation
+        val rocketImage: ImageView = findViewById(R.id.rocket)
+        rocketImage.setBackgroundResource(R.drawable.animation)
+        val rocketAnimation = rocketImage.background as AnimationDrawable
+        //button on click to start and stop animation
+        findViewById<Button>(R.id.play_animation_button).setOnClickListener {
+            if (rocketAnimation.isRunning) {
+                rocketAnimation.stop()
+            } else {
+                rocketAnimation.start()
+            }
+        }
 
     }
-
 
 
     private val onLongClickListener = View.OnLongClickListener { view: View ->
-        (view as? Button)?.let {
+        val item = ClipData.Item((view as Button).tag as? CharSequence)
+        //dragData has the tag of the view
+        val dragData = ClipData(
+            (view.tag as? CharSequence),
+            arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN), item
+        )
+        //creates shadow when dragging to show users
+        val myShadow = ArrowDragShadowBuilder(view)
 
-            val item = ClipData.Item(it.tag as? CharSequence)
-
-            val dragData = ClipData( it.tag as? CharSequence,
-                arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN), item)
-            val myShadow = ArrowDragShadowBuilder(it)
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                it.startDragAndDrop(dragData, myShadow, null, 0)
-            } else {
-                it.startDrag(dragData, myShadow, null, 0)
-            }
-
-            true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            view.startDragAndDrop(dragData, myShadow, null, 0)
+        } else {
+            view.startDrag(dragData, myShadow, null, 0)
         }
-        false
+
+        true // Return true to indicate that the long click event is consumed
     }
-
-
 
 
     private val arrowDragListener = View.OnDragListener { view, dragEvent ->
         (view as? ImageView)?.let {
             when (dragEvent.action) {
                 DragEvent.ACTION_DRAG_STARTED -> {
-                    return@OnDragListener true
+                    //if event's clip has correct mimeType, continue drag
+                    if (dragEvent.clipDescription.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN)) {
+                        view.invalidate()
+                        true
+                    } else {
+                        //else stop drag
+                        false
+                    }
                 }
+
                 DragEvent.ACTION_DRAG_ENTERED -> {
-                    return@OnDragListener true
+                    // Set a background resource when the arrow is over the ImageView
+                    view.setBackgroundResource(R.drawable.highlighted_border)
+                    view.invalidate()
+                    true
                 }
-                DragEvent.ACTION_DRAG_EXITED-> {
-                    return@OnDragListener true
+
+                DragEvent.ACTION_DRAG_EXITED -> {
+                    // Set back to the original background resource when the arrow leaves the ImageView
+                    view.setBackgroundResource(R.drawable.border)
+                    view.invalidate()
+                    true
                 }
+
                 // No need to handle this for our use case.
                 DragEvent.ACTION_DRAG_LOCATION -> {
-                    return@OnDragListener true
+                    true
                 }
 
                 DragEvent.ACTION_DROP -> {
-                    // Read color data from the clip data and apply it to the card view background.
+                    // Read color data from the clip data and apply it to the ImageView background.
                     val item: ClipData.Item = dragEvent.clipData.getItemAt(0)
+                    //lbl is the tag of the button
                     val lbl = item.text.toString()
-                    Log.d("BCCCCCCCCCCC", "NOTHING > >  " + lbl)
-                   when(lbl.toString()){
-                       "UP"->view.setImageResource( R.drawable.ic_baseline_arrow_upward_24)
-                   }
-                    return@OnDragListener true
+                    when (lbl) {
+                        "UP" -> view.setImageResource(R.drawable.ic_baseline_arrow_upward_24)
+                        "DOWN" -> view.setImageResource(R.drawable.ic_baseline_arrow_downward_24)
+                        "BACK" -> view.setImageResource(R.drawable.ic_baseline_arrow_back_24)
+                        "FORWARD" -> view.setImageResource(R.drawable.ic_baseline_arrow_forward_24)
+                    }
+                    view.invalidate()
+                    true
                 }
+
                 DragEvent.ACTION_DRAG_ENDED -> {
-                    return@OnDragListener true
+                    // Set back to the original background resource when the drag operation ends
+                    view.setBackgroundResource(R.drawable.border)
+                    view.invalidate()
+                    true
                 }
-                else -> return@OnDragListener false
+
+                else -> false
             }
-        }
-        false
+        } ?: false
     }
 
 
@@ -102,6 +141,7 @@ class DragAndDropViews : AppCompatActivity() {
             size.set(width, height)
             touch.set(width / 2, height / 2)
         }
+
         override fun onDrawShadow(canvas: Canvas) {
             shadow?.draw(canvas)
         }
